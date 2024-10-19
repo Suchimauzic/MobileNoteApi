@@ -2,6 +2,9 @@
 
 NoteApi::NoteApi(int port, int threads, std::string dbName, std::string dbLogin, std::string dbPass, std::string dbServerIP, std::string dbPort)
 {
+    // random
+    srand(time(NULL));
+
     /* REST API */
     // Server parameters
     Address addr(Ipv4::any(), Port(port));
@@ -60,9 +63,9 @@ void NoteApi::bindRouters()
     /* Session actions */
     
     // Add session
-    Routes::Post(router, "/accout", Routes::bind(&NoteApi::manageSession, this));
-    // Delete session
     Routes::Post(router, "/session", Routes::bind(&NoteApi::manageSession, this));
+    // Delete session
+    Routes::Delete(router, "/session", Routes::bind(&NoteApi::manageSession, this));
     
     /* Note actions */
     
@@ -74,6 +77,8 @@ void NoteApi::bindRouters()
     Routes::Get(router, "/note", Routes::bind(&NoteApi::manageNote, this));
     // Update note
     Routes::Put(router, "/note", Routes::bind(&NoteApi::manageNote, this));
+    // Delete note
+    Routes::Delete(router, "/note", Routes::bind(&NoteApi::manageNote, this));
 
     // Shutdown the server
     Routes::Get(router, "/shutdown", Routes::bind(&NoteApi::shutdownServer, this));
@@ -123,17 +128,43 @@ void NoteApi::manageAccount(const Rest::Request& request, Http::ResponseWriter r
     {
         std::string token = body["token"];
 
+        pqxx::result result = work.exec("SELECT * FROM data.account WHERE account_id = (SELECT session_account from data.session WHERE session_token = '" + token + "');");
         work.exec("DELETE FROM data.account WHERE account_id = (SELECT session_account FROM data.session WHERE session_token = '" + token + "');");
+        work.exec("DELETE FROM data.session WHERE session_account = " + result[0][0].as<std::string>() + ";");
         work.commit();
 
-        response.send(Http:Code::Ok, "true");
+        response.send(Http::Code::Ok, "true");
     }
 }
 
 /* Session actions */
 void NoteApi::manageSession(const Rest::Request& request, Http::ResponseWriter response)
 {
-    
+    json body = json::parse(request.body());
+    pqxx::work work(*con);
+
+    // Add session
+    if (request.method() == Http::Method::Post)
+    {
+        std::string name = body["name"];
+        std::string secret = body["secret"];
+
+        pqxx::result result = work.exec("SELECT * FROM data.account WHERE account_name = '" + name + "' AND account_secret = '" + secret + "';");
+
+        work.exec("INSERT INTO data.session (session_account, session_token) VALUES (" + result[0][0].as<std::string>() + ", '" + generateToken(10) + "');");
+        response.send(Http::Code::Ok, "true");
+
+        work.commit();
+    }
+
+    // Delete session
+    if (request.method() == Http::Method::Delete)
+    {
+        std::string token = body["token"];
+        work.exec("DELETE FROM data.session WHERE session_token = '" + token + "';");
+        work.commit();
+        response.send(Http::Code::Ok, "true");
+    }
 }
 
 /* Note actions */
@@ -147,4 +178,20 @@ void NoteApi::shutdownServer(const Rest::Request& request, Http::ResponseWriter 
 {
     response.send(Http::Code::Ok);
     server->shutdown();
+}
+
+// Generate token
+std::string NoteApi::generateToken(int length)
+{
+    const std::string tokenChars = "0123456789abcdef";
+    
+    std::string token;
+    token.resize(length);
+
+    for (int i = 0; i < length; i++)
+    {
+        token[i] = tokenChars[rand() % tokenChars.length()];
+    }
+
+    return token;
 }

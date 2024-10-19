@@ -40,4 +40,7 @@ private:
 
     // Shutdown the server
     void shutdownServer(const Rest::Request& request, Http::ResponseWriter response);
+
+    // Generate token
+    std::string generateToken(int length);
 };
