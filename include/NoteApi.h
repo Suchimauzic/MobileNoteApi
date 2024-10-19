@@ -5,9 +5,11 @@
 #include <pistache/router.h>
 
 #include <pqxx/pqxx>
+#include <nlohmann/json.hpp>
 #include <iostream>
 
 using namespace Pistache;
+using json = nlohmann::json;
 
 class NoteApi
 {
@@ -23,27 +25,19 @@ private:
     /* DB */
     pqxx::connection* con;
 
-
     void bindRouters();         // bind all functions for rest api
 
-    /* Functions */
-    void standartFunction(const Rest::Request& request, Http::ResponseWriter response);
+    /* Server functions */
 
-    /* Add functions */
-    void addAccount(const Rest::Request& request, Http::ResponseWriter response);
-    void addSession(const Rest::Request& request, Http::ResponseWriter response);
-    void addNote(const Rest::Request& request, Http::ResponseWriter response);
+    // Actions with account
+    void manageAccount(const Rest::Request& request, Http::ResponseWriter response);
+    
+    // Actions with session
+    void manageSession(const Rest::Request& request, Http::ResponseWriter response);
+    
+    // Actions with note
+    void manageNote(const Rest::Request& request, Http::ResponseWriter response);
 
-    /* Get functions */
-    void getNoteContent(const Rest::Request& request, Http::ResponseWriter response);
-    void getNotes(const Rest::Request& request, Http::ResponseWriter response);
-
-    /* Update functions */
-    void updateNote(const Rest::Request& request, Http::ResponseWriter response);
-    void updatePass(const Rest::Request& request, Http::ResponseWriter response);
-
-    /* Delete functions */
-    void deleteAccount(const Rest::Request& request, Http::ResponseWriter response);
-    void deleteSession(const Rest::Request& request, Http::ResponseWriter response);
-    void deleteNote(const Rest::Request& request, Http::ResponseWriter response);
+    // Shutdown the server
+    void shutdownServer(const Rest::Request& request, Http::ResponseWriter response);
 };

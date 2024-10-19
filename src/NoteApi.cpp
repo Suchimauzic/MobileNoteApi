@@ -4,13 +4,13 @@ NoteApi::NoteApi(int port, int threads, std::string dbName, std::string dbLogin,
 {
     /* REST API */
     // Server parameters
-    Address addr(Ipv4::any, Port(port));
+    Address addr(Ipv4::any(), Port(port));
     auto outs = Http::Endpoint::options().threads(threads);
     
     try
     {
         // DB
-        con = new pqxx::connection("dbname=" + dbName + " user=" + dbLogin + "password=" + dbPass + " host=" + dbServerIP + " port=" + dbPort);
+        con = new pqxx::connection("dbname=" + dbName + " user=" + dbLogin + " password=" + dbPass + " host=" + dbServerIP + " port=" + dbPort);
 
         if (con->is_open())
         {
@@ -18,15 +18,14 @@ NoteApi::NoteApi(int port, int threads, std::string dbName, std::string dbLogin,
             
             // Server init
             server = new Http::Endpoint(addr);
-            server->init(opts);
+            server->init(outs);
             
             // Router
             bindRouters();
-            server->setHandler(router);
+            server->setHandler(router.handler());
 
             // Start a database 
             server->serve();
-            std::cout << "Server is running..." << std::
         }
     }
     catch (const std::exception& ex)
@@ -37,10 +36,11 @@ NoteApi::NoteApi(int port, int threads, std::string dbName, std::string dbLogin,
 
 NoteApi::~NoteApi()
 {
+    std::cout << "Close the server" << std::endl;
     if (con->is_open())
     {
         delete con;
-        delete ser
+        delete server;
     }
 }
 
@@ -48,104 +48,58 @@ void NoteApi::bindRouters()
 {
     using namespace Rest;
 
-    Routes::Get(router, "/", Routes::bind(&NoteApi::standartFunction, this));
+    /* Account actions */
 
-    /* Add functions */
-    Routes::Get(router, "/addaccount/:name/:secret", Routes::bind(&NoteApi::addAccount, this));
-    Routes::Get(router, "/addsession/:name/:secret", Routes::bind(&NoteApi::addSession, this));
-    Routes::Get(router, "/addnote/:token", Routes::bind(&NoteApi::addNote, this));
+    // Add account
+    Routes::Post(router, "/account", Routes::bind(&NoteApi::manageAccount, this));
+    // Update password
+    Routes::Put(router, "/account", Routes::bind(&NoteApi::manageAccount, this));
+    // Delete accout
+    Routes::Delete(router, "/account", Routes::bind(&NoteApi::manageAccount, this));
 
-    /* Get functions */
-    Routes::Get(router, "/getnote/:token/:id", Routes::bind(&NoteApi::getNoteContent, this));
-    Routes::Get(router, "/getnotes/:token", Routes::bind(&NoteApi::getNotes, this));
+    /* Session actions */
+    
+    // Add session
+    Routes::Post(router, "/accout", Routes::bind(&NoteApi::manageSession, this));
+    // Delete session
+    Routes::Post(router, "/session", Routes::bind(&NoteApi::manageSession, this));
+    
+    /* Note actions */
+    
+    // Add note
+    Routes::Post(router, "/note", Routes::bind(&NoteApi::manageNote, this));
+    // Get note
+    Routes::Get(router, "/note/:id", Routes::bind(&NoteApi::manageNote, this));
+    // Get notes
+    Routes::Get(router, "/note", Routes::bind(&NoteApi::manageNote, this));
+    // Update note
+    Routes::Put(router, "/note", Routes::bind(&NoteApi::manageNote, this));
 
-    /* Update functions */
-    Routes::Get(router, "/updatenote/:token/:id/:title/:content", Routes::bind(&NoteApi::updateNote, this));
-    Routes::Get(router, "/updatepass/:token/:secret", Routes::bind(&NoteApi::updatePass, this));
-
-    /* Delete functions */
-    Routes::Get(router, "/deleteaccount/:token", Routes::bind(&NoteApi::deleteAccount, this));
-    Routes::Get(router, "/deletesession/:token", Routes::bind(&NoteApi::deleteSession, this));
-    Routes::Get(router, "/deletenote/:token/:id", Routes::bind(&NoteApi::standartFunction, this));
+    // Shutdown the server
+    Routes::Get(router, "/shutdown", Routes::bind(&NoteApi::shutdownServer, this));
 }
 
-
-/* Functions */
-
-void NoteApi::standartFunction(const Rest::Request& request, Http::ResponseWriter response)
+/* Account actions*/
+void NoteApi::manageAccount(const Rest::Request& request, Http::ResponseWriter response)
 {
-    std::string text = "Hello, this is my REST API server. You can use this methods:\n";
-    text.append("/addaccount/{name}/{secret} - create a new user\n");
-    text.append("/addsession/{name}/{secret} - create a new session\n");
-    text.append("/addnote/{token} - create a new note\n\n");
-
-    text.append("/getnote/{token}/{id} - get user note by getting note id\n");
-    text.append("/getnotes/{token} - get all user notes\n\n");
-
-    text.append("/updatenote/{token}/{id}/{title}/{content} - update note data\n");
-    text.append("/updatepass/{token}/{secret} - create a new password\n\n");
-
-    text.append("/deleteaccount/{token} - delete current account\n");
-    text.append("/deletesession/{token} - delete current session\n");
-    text.append("/deletenote/{token}/{id} - delete note\n");
-
-    response.send(Http::Code::Ok, text);
+    
 }
 
-/* Add functions */
-
-void NoteApi::addAccount(const Rest::Request& request, Http::ResponseWriter response)
+/* Session actions */
+void NoteApi::manageSession(const Rest::Request& request, Http::ResponseWriter response)
 {
 
 }
 
-void NoteApi::addSession(const Rest::Request& request, Http::ResponseWriter response)
+/* Note actions */
+void NoteApi::manageNote(const Rest::Request& request, Http::ResponseWriter response)
 {
-
+    
 }
 
-void NoteApi::addNote(const Rest::Request& request, Http::ResponseWriter response)
+/* Shutdown the server */
+void NoteApi::shutdownServer(const Rest::Request& request, Http::ResponseWriter response)
 {
-
-}
-
-/* Get functions */
-
-void NoteApi::getNoteContent(const Rest::Request& request, Http::ResponseWriter response)
-{
-
-}
-
-void NoteApi::getNotes(const Rest::Request& request, Http::ResponseWriter response)
-{
-
-}
-
-/* Update functions */
-
-void NoteApi::updateNote(const Rest::Request& request, Http::ResponseWriter response)
-{
-
-}
-
-void NoteApi::updatePass(const Rest::Request& request, Http::ResponseWriter response)
-{
-
-}
-
-/* Delete functions */
-
-void NoteApi::deleteAccount(const Rest::Request& request, Http::ResponseWriter response)
-{
-
-}
-
-void NoteApi::deleteSession(const Rest::Request& request, Http::ResponseWriter response)
-{
-
-}
-
-void NoteApi::deleteNote(const Rest::Request& request, Http::ResponseWriter response)
-{
-
+    response.send(Http::Code::Ok);
+    server->shutdown();
 }
