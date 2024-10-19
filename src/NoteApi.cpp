@@ -82,13 +82,58 @@ void NoteApi::bindRouters()
 /* Account actions*/
 void NoteApi::manageAccount(const Rest::Request& request, Http::ResponseWriter response)
 {
-    
+    json body = json::parse(request.body());
+    pqxx::work work(*con);
+
+    // Create account
+    if (request.method() == Http::Method::Post)
+    {
+        std::string name = body["name"];
+        std::string secret = body["secret"];
+
+        pqxx::result result = work.exec("SELECT * FROM data.account WHERE account_name = '" + name + "';");
+
+        if (result[0][0].is_null())     // This account is not exist
+        {
+            work.exec("INSERT INTO data.account (account_name, account_secret) VALUES ('" + name + "', '" + secret + "');");
+            response.send(Http::Code::Ok, "true");
+        }
+        else
+        {
+            response.send(Http::Code::Ok, "false");
+        }
+
+        work.commit();
+    }
+
+    // Update password
+    if (request.method() == Http::Method::Put)
+    {
+        std::string token = body["token"];
+        std::string secret = body["secret"];
+
+        work.exec("UPDATE data.account SET account_secret = '" + secret + "' WHERE account_id = (SELECT session_account from data.session WHERE session_token = '" + token + "');");
+        work.commit();
+
+        response.send(Http::Code::Ok, "true");
+    }
+
+    // Delete account
+    if (request.method() == Http::Method::Delete)
+    {
+        std::string token = body["token"];
+
+        work.exec("DELETE FROM data.account WHERE account_id = (SELECT session_account FROM data.session WHERE session_token = '" + token + "');");
+        work.commit();
+
+        response.send(Http:Code::Ok, "true");
+    }
 }
 
 /* Session actions */
 void NoteApi::manageSession(const Rest::Request& request, Http::ResponseWriter response)
 {
-
+    
 }
 
 /* Note actions */
