@@ -6,7 +6,11 @@
 
 #include <pqxx/pqxx>
 #include <nlohmann/json.hpp>
+
 #include <iostream>
+#include <format>
+
+#include "Note.h"
 
 using namespace Pistache;
 using json = nlohmann::json;
