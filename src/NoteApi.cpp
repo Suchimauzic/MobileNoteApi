@@ -209,14 +209,6 @@ void NoteApi::manageNote(const Rest::Request& request, Http::ResponseWriter resp
             // Get the note
             pqxx::result result = work.exec("SELECT * FROM data.note WHERE note_id = " + id + " AND note_account = (SELECT session_account FROM data.session WHERE session_token = '" + token + "');");
 
-            /*Note note
-            {
-                result[0][0].as<std::string>(),
-                result[0][1].as<std::string>(),
-                result[0][2].as<std::string>(),
-                result[0][3].as<std::string>()
-            };*/
-
             // Fill the object with data 
             json info;
             info["note_id"] = result[0][0].as<std::string>();
