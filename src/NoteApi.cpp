@@ -161,7 +161,7 @@ void NoteApi::manageSession(const Rest::Request& request, Http::ResponseWriter r
         pqxx::result result = work.exec("SELECT * FROM data.account WHERE account_name = '" + name + "' AND account_secret = '" + secret + "';");
 
         // Add session
-        //work.exec("INSERT INTO data.session (session_account, session_token) VALUES (" + result[0][0].as<std::string>() + ", '" + generateToken(10) + "');");
+        work.exec("INSERT INTO data.session (session_account, session_token) VALUES (" + result[0][0].as<std::string>() + ", '" + generateToken(32) + "');");
         response.send(Http::Code::Ok, "true");
 
         work.commit();
