@@ -12,6 +12,7 @@ NoteApi::NoteApi(int port, int threads, std::string dbName, std::string dbLogin,
     
     try
     {
+        std::cout << "Connect to the database..." << std::endl;
         // DB
         con = new pqxx::connection("dbname=" + dbName + " user=" + dbLogin + " password=" + dbPass + " host=" + dbServerIP + " port=" + dbPort);
 
@@ -160,9 +161,11 @@ void NoteApi::manageSession(const Rest::Request& request, Http::ResponseWriter r
         // Get the account
         pqxx::result result = work.exec("SELECT * FROM data.account WHERE account_name = '" + name + "' AND account_secret = '" + secret + "';");
 
+        std::string token = generateToken(32);
+
         // Add session
-        work.exec("INSERT INTO data.session (session_account, session_token) VALUES (" + result[0][0].as<std::string>() + ", '" + generateToken(32) + "');");
-        response.send(Http::Code::Ok, "true");
+        work.exec("INSERT INTO data.session (session_account, session_token) VALUES (" + result[0][0].as<std::string>() + ", '" + token + "');");
+        response.send(Http::Code::Ok, token);
 
         work.commit();
     }
