@@ -8,3 +8,6 @@ git clone https://github.com/jtv/libpqxx ./lib/libpqxx
 
 # Nlohmann json lib
 git clone https://github.com/nlohmann/json ./lib/json
+
+# GoogleTest lib
+git clone https://github.com/google/googletest ./lib/googletest

@@ -21,11 +21,11 @@ add_subdirectory(lib/json)
 
 # Project
 file(GLOB CPPS src/*.cpp)
-include_directories(include/)
 add_executable(${PROJECT_NAME} ${CPPS})
+target_include_directories(${PROJECT_NAME} PRIVATE include/)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC libpqxx::pqxx pistache nlohmann_json::nlohmann_json)
+target_link_libraries(${PROJECT_NAME} PRIVATE libpqxx::pqxx pistache nlohmann_json::nlohmann_json)
 
 if (MOBILE_UNIT_TEST)
-    target_link_libraries(tests PUBLIC gtest gtest_main)
+    target_link_libraries(tests PRIVATE libpqxx::pqxx pistache nlohmann_json::nlohmann_json gtest gtest_main)
 endif()
