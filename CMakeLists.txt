@@ -27,5 +27,5 @@ target_include_directories(${PROJECT_NAME} PRIVATE include/)
 target_link_libraries(${PROJECT_NAME} PRIVATE libpqxx::pqxx pistache nlohmann_json::nlohmann_json)
 
 if (MOBILE_UNIT_TEST)
-    target_link_libraries(tests PRIVATE libpqxx::pqxx pistache nlohmann_json::nlohmann_json gtest gtest_main)
+    target_link_libraries(tests PRIVATE libpqxx::pqxx nlohmann_json::nlohmann_json gtest gtest_main)
 endif()

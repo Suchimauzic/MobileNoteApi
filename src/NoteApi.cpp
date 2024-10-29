@@ -1,36 +1,74 @@
 #include "NoteApi.h"
 
+NoteApi::NoteApi()
+{
+    Address addr(Ipv4::any(), Port(9080));
+    auto outs = Http::Endpoint::options().threads(5);
+
+    std::cout << "Connecting to the database..." << std::endl;
+    manageDB = new ManageDB();
+
+    if (manageDB->con->is_open())
+    {
+        std::cout << "Connection to the database is successful! DB name = " << manageDB->con->dbname() << std::endl;
+    }
+    else
+    {
+        std::cout << "Cannot connect to the database! Program is stopping" << std::endl;
+    }
+
+    try
+    {
+        // Server init
+        server = new Http::Endpoint(addr);
+        server->init(outs);
+        
+        // Router
+        bindRouters();
+        server->setHandler(router.handler());
+
+        // Start a database
+        server->serve();
+    }
+    catch(const std::exception& ex)
+    {
+        std::cerr << ex.what() << '\n';
+    }
+    
+}
+
 NoteApi::NoteApi(int port, int threads, std::string dbName, std::string dbLogin, std::string dbPass, std::string dbServerIP, std::string dbPort)
 {
-    // random
-    srand(time(NULL));
-
     /* REST API */
     // Server parameters
     Address addr(Ipv4::any(), Port(port));
     auto outs = Http::Endpoint::options().threads(threads);
     
+    std::cout << "Connecting to the database..." << std::endl;
+    manageDB = new ManageDB(dbName, dbLogin, dbPass, dbServerIP, dbPort);
+
+    if (manageDB->con->is_open())
+    {
+        std::cout << "Connection to the database is successful! DB name = " << manageDB->con->dbname() << std::endl;
+    }
+    else
+    {
+        std::cout << "Cannot connect to the database! Program is stopping..." << std::endl;
+        return;
+    }
+
     try
     {
-        std::cout << "Connect to the database..." << std::endl;
-        // DB
-        con = new pqxx::connection("dbname=" + dbName + " user=" + dbLogin + " password=" + dbPass + " host=" + dbServerIP + " port=" + dbPort);
+        // Server init
+        server = new Http::Endpoint(addr);
+        server->init(outs);
+        
+        // Router
+        bindRouters();
+        server->setHandler(router.handler());
 
-        if (con->is_open())
-        {
-            std::cout << "Connection to a database is successful! DB name = " << con->dbname() << std::endl;
-            
-            // Server init
-            server = new Http::Endpoint(addr);
-            server->init(outs);
-            
-            // Router
-            bindRouters();
-            server->setHandler(router.handler());
-
-            // Start a database 
-            server->serve();
-        }
+        // Start a database
+        server->serve();
     }
     catch (const std::exception& ex)
     {
@@ -40,12 +78,10 @@ NoteApi::NoteApi(int port, int threads, std::string dbName, std::string dbLogin,
 
 NoteApi::~NoteApi()
 {
-    std::cout << "Close the server" << std::endl;
-    if (con->is_open())
-    {
-        delete con;
-        delete server;
-    }
+    std::cout << "Closing the database..." << std::endl;
+    delete manageDB;
+    std::cout << "Closing the server..." << std::endl;
+    delete server;
 }
 
 void NoteApi::bindRouters()
@@ -85,33 +121,20 @@ void NoteApi::bindRouters()
     Routes::Get(router, "/shutdown", Routes::bind(&NoteApi::shutdownServer, this));
 }
 
+
 /* Account actions*/
+
 void NoteApi::manageAccount(const Rest::Request& request, Http::ResponseWriter response)
 {
     json body = json::parse(request.body());
-    pqxx::work work(*con);
+    
 
     // Create account
     if (request.method() == Http::Method::Post)
     {
         std::string name = body["name"];
         std::string secret = body["secret"];
-
-        // Get an account using a name
-        pqxx::result result = work.exec("SELECT * FROM data.account WHERE account_name = '" + name + "';");
-
-        if (result[0][0].is_null())     // This account does not exist
-        {
-            // Add a new account
-            work.exec("INSERT INTO data.account (account_name, account_secret) VALUES ('" + name + "', '" + secret + "');");
-            response.send(Http::Code::Ok, "true");
-        }
-        else                            // This account exists
-        {
-            response.send(Http::Code::Ok, "false");
-        }
-
-        work.commit();
+        response.send(Http::Code::Ok, manageDB->addAccount(name, secret));
     }
 
     // Update password
@@ -119,73 +142,46 @@ void NoteApi::manageAccount(const Rest::Request& request, Http::ResponseWriter r
     {
         std::string token = body["token"];
         std::string secret = body["secret"];
-
-        // Update account pass
-        work.exec("UPDATE data.account SET account_secret = '" + secret + "' WHERE account_id = (SELECT session_account from data.session WHERE session_token = '" + token + "');");
-        work.commit();
-
-        response.send(Http::Code::Ok, "true");
+        response.send(Http::Code::Ok, manageDB->updatePass(token, secret));
     }
 
     // Delete account
     if (request.method() == Http::Method::Delete)
     {
         std::string token = body["token"];
-
-        // Get an account using a token
-        pqxx::result result = work.exec("SELECT * FROM data.account WHERE account_id = (SELECT session_account from data.session WHERE session_token = '" + token + "');");
-
-        // Delete this account
-        work.exec("DELETE FROM data.account WHERE account_id = " + result[0][0].as<std::string>() + ";");
-
-        // Delete all sessions that belonged to this account
-        work.exec("DELETE FROM data.session WHERE session_account = " + result[0][0].as<std::string>() + ";");
-        work.commit();
-
-        response.send(Http::Code::Ok, "true");
+        response.send(Http::Code::Ok, manageDB->deleteAccount(token));
     }
 }
 
+
 /* Session actions */
+
 void NoteApi::manageSession(const Rest::Request& request, Http::ResponseWriter response)
 {
     json body = json::parse(request.body());
-    pqxx::work work(*con);
 
     // Add session
     if (request.method() == Http::Method::Post)
     {
         std::string name = body["name"];
         std::string secret = body["secret"];
-
-        // Get the account
-        pqxx::result result = work.exec("SELECT * FROM data.account WHERE account_name = '" + name + "' AND account_secret = '" + secret + "';");
-
-        std::string token = generateToken(32);
-
-        // Add session
-        work.exec("INSERT INTO data.session (session_account, session_token) VALUES (" + result[0][0].as<std::string>() + ", '" + token + "');");
-        response.send(Http::Code::Ok, token);
-
-        work.commit();
+        response.send(Http::Code::Ok, manageDB->addSession(name, secret));
     }
 
     // Delete session
     if (request.method() == Http::Method::Delete)
     {
         std::string token = body["token"];
-        // Delete this session
-        work.exec("DELETE FROM data.session WHERE session_token = '" + token + "';");
-        work.commit();
-        response.send(Http::Code::Ok, "true");
+        response.send(Http::Code::Ok, manageDB->deleteSession(token));
     }
 }
 
+
 /* Note actions */
+
 void NoteApi::manageNote(const Rest::Request& request, Http::ResponseWriter response)
 {
     json body;
-    pqxx::work work(*con);
 
     if (request.method() != Http::Method::Get)
         body = json::parse(request.body());
@@ -194,11 +190,7 @@ void NoteApi::manageNote(const Rest::Request& request, Http::ResponseWriter resp
     if (request.method() == Http::Method::Post)
     {
         std::string token = body["token"];
-        // Insert new note
-        work.exec("INSERT INTO data.note (note_account, note_title, note_content) VALUES ((SELECT session_account FROM data.session WHERE session_token = '" + token + "'), 'New note', 'Some text');");
-        work.commit();
-
-        response.send(Http::Code::Ok, "true");
+        response.send(Http::Code::Ok, manageDB->addNote(token));
     }
 
     // Get note or notes
@@ -208,50 +200,13 @@ void NoteApi::manageNote(const Rest::Request& request, Http::ResponseWriter resp
         {
             std::string token = request.param(":token").as<std::string>();
             std::string id = request.param(":id").as<std::string>();
-
-            // Get the note
-            pqxx::result result = work.exec("SELECT * FROM data.note WHERE note_id = " + id + " AND note_account = (SELECT session_account FROM data.session WHERE session_token = '" + token + "');");
-
-            // Fill the object with data 
-            json info;
-            info["note_id"] = result[0][0].as<std::string>();
-            info["note_account"] = result[0][1].as<std::string>();
-            info["note_title"] = result[0][2].as<std::string>();
-            info["note_content"] = result[0][3].as<std::string>();
-
-            response.send(Http::Code::Ok, info.dump());
+            response.send(Http::Code::Ok, manageDB->getNote(token, id));
         }
         else    // Get notes
         {
             std::string token = request.param(":token").as<std::string>();
-            // Get notes
-            pqxx::result result = work.exec("SELECT * FROM data.note WHERE note_account = (SELECT session_account FROM data.session WHERE session_token = '" + token + "');");
-
-            // Create a json response
-            std::string keys[] { "\"note_id\"", "\"note_account\"", "\"note_title\"", "\"note_content\"" };
-            std::string json = "[";
-            for (int i = 0; i < result.size(); i++)
-            {
-                if (i > 0)
-                    json += ",";
-                json += "{";
-                for (int j = 0; j < 4; j++)
-                {
-                    json += keys[j] + ":\"" + result[i][j].as<std::string>() + "\"";
-                    if (j < 3)
-                        json += ",";
-                }
-                json += "}";
-            }
-            json += "]";
-
-            // Get the final json response
-            std::string jsonResponse = "{\"notes\":" + json + "}";
-
-            response.send(Http::Code::Ok, jsonResponse);
+            response.send(Http::Code::Ok, manageDB->getNotes(token));
         }
-
-        work.commit();
     }
 
     // Update note
@@ -261,12 +216,7 @@ void NoteApi::manageNote(const Rest::Request& request, Http::ResponseWriter resp
         std::string id = body["id"];
         std::string title = body["title"];
         std::string content = body["content"];
-
-        // Update note
-        work.exec("UPDATE data.note SET note_title = '" + title + "', note_content = '" + content + "' WHERE note_id = " + id + " AND note_account = (SELECT session_account FROM data.session WHERE session_token = '" + token + "');");
-        work.commit();
-
-        response.send(Http::Code::Ok, "true");
+        response.send(Http::Code::Ok, manageDB->updateNote(token, id, title, content));
     }
 
     // Delete note
@@ -274,34 +224,15 @@ void NoteApi::manageNote(const Rest::Request& request, Http::ResponseWriter resp
     {
         std::string token = body["token"];
         std::string id = body["id"];
-
-        // Delete note
-        work.exec("DELETE FROM data.note WHERE note_id = " + id + " AND note_account = (SELECT session_account FROM data.session WHERE session_token = '" + token + "');");
-        work.commit();
-
-        response.send(Http::Code::Ok, "true");
+        response.send(Http::Code::Ok, manageDB->deleteNote(token, id));
     }
 }
 
+
 /* Shutdown the server */
+
 void NoteApi::shutdownServer(const Rest::Request& request, Http::ResponseWriter response)
 {
     response.send(Http::Code::Ok, "Shutdown");
     server->shutdown();
-}
-
-// Generate token
-std::string NoteApi::generateToken(int length)
-{
-    const std::string tokenChars = "0123456789abcdef";
-    
-    std::string token;
-    token.resize(length);
-
-    for (int i = 0; i < length; i++)
-    {
-        token[i] = tokenChars[rand() % tokenChars.length()];
-    }
-
-    return token;
 }

@@ -2,6 +2,9 @@
 
 int main()
 {
+    // Random
+    srand(time(NULL));
+
     int port = 9080;
     int threads = 5;
     

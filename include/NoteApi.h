@@ -4,11 +4,12 @@
 #include <pistache/http.h>
 #include <pistache/router.h>
 
-#include <pqxx/pqxx>
 #include <nlohmann/json.hpp>
 
+#include "ManageDB.h"
+
 #include <iostream>
-#include <format>
+//#include <format>
 
 using namespace Pistache;
 using json = nlohmann::json;
@@ -16,6 +17,7 @@ using json = nlohmann::json;
 class NoteApi
 {
 public:
+    NoteApi();
     NoteApi(int port, int threads, std::string dbName, std::string dbLogin, std::string dbPass, std::string dbServerIP, std::string dbPort);
     ~NoteApi();
     
@@ -25,7 +27,7 @@ private:
     Rest::Router router;
 
     /* DB */
-    pqxx::connection* con;
+    ManageDB* manageDB;
 
     void bindRouters();         // bind all functions for rest api
 
@@ -42,7 +44,4 @@ private:
 
     // Shutdown the server
     void shutdownServer(const Rest::Request& request, Http::ResponseWriter response);
-
-    // Generate token
-    std::string generateToken(int length);
 };
