@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 project(MobileNoteApi)
 
-set(MOBILE_UNIT_TEST TRUE)
+set(MOBILE_UNIT_TEST TRUE CACHE BOOL "For creating unit-tests")
 
 if (MOBILE_UNIT_TEST)
     cmake_policy(SET CMP0079 NEW)
