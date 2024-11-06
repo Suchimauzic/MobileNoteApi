@@ -129,8 +129,9 @@ std::string ManageDB::addNote(const std::string token)
     
     // Insert new note
     work.exec("INSERT INTO data.note (note_account, note_title, note_content) VALUES ((SELECT session_account FROM data.session WHERE session_token = '" + token + "'), 'New note', 'Some text');");
+    pqxx::result result = work.exec("SELECT * FROM data.note WHERE note_account = (SELECT session_account FROM data.session WHERE session_token = '" + token + "') ORDER BY note_id DESC;");
     work.commit();
-    return "true";
+    return result[0][0].as<std::string>();
 }
 
 std::string ManageDB::getNote(const std::string token, const std::string id)
