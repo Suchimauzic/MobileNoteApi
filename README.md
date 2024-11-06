@@ -12,11 +12,21 @@ Using this API users can:
 * Create and delete sessions
 * Create, update and delete notes
 * Update password
-* Get note and notes
+* Get all information about note
+* Get notes list for a specific user
+
+## Dependencies
+
+The project uses these third party dependencies:
+
+* [Pistache] (https://github.com/pistacheio/pistache)
+* [Libpqxx] (https://github.com/jtv/libpqxx)
+* [Nlohmann json] (https://github.com/nlohmann/json)
+* [GoogleTest] (https://github.com/google/googletest)
 
 ## Build and compile
 
-For building the project you need to clone libraries. Use this command:
+Run install_libs.sh to clone dependencies:
 
 ```sh
 $ ./install_libs.sh
@@ -26,7 +36,7 @@ $ ./install_libs.sh
 
 In this case you need `gcc` and `cmake`.
 
-First step you have to create a build directory:
+Create build directory:
 
 ```sh
 $ mkdir build
@@ -50,16 +60,10 @@ If you don't want you need to write:
 $ cmake -DMOBILE_UNIT_TEST=FALSE ..
 ```
 
-And when you finished building the project you have to compile it:
+Build and run the API:
 
 ```sh
 $ make
-```
-
-After successful compiling you can start the API:
-
-```sh
-$ ./MobileNoteApi
 ```
 
 ### Using Docker
@@ -67,6 +71,37 @@ $ ./MobileNoteApi
 In this case you need to write this commands:
 
 ```sh
-$ sudo docker buildx build -t mobile-note-api .
-$ sudo docker run mobile-note-api
+$ docker buildx build -t mobile-note-api .
+```
+
+## Usage
+
+### Cmake
+
+Run the program:
+
+```sh
+$ ./build/MobileNoteApi
+```
+
+Program can be accessed on http://127.0.0.1:9080
+
+Run the unit-tests:
+
+```sh
+$ ./build/tests/tests
+```
+
+### Docker
+
+```sh
+$ docker run -d -p PORT:9080 mobile-note-api
+```
+
+Program can be accessed on http://127.0.0.1:PORT
+
+Example:
+
+```sh
+$ docker run -d -p 9080:9080 mobile-note-api
 ```
