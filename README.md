@@ -19,10 +19,10 @@ Using this API users can:
 
 The project uses these third party dependencies:
 
-- [Pistache] (https://github.com/pistacheio/pistache)
-- [Libpqxx] (https://github.com/jtv/libpqxx)
-- [Nlohmann json] (https://github.com/nlohmann/json)
-- [GoogleTest] (https://github.com/google/googletest)
+- [Pistache](https://github.com/pistacheio/pistache)
+- [Libpqxx](https://github.com/jtv/libpqxx)
+- [Nlohmann json](https://github.com/nlohmann/json)
+- [GoogleTest](https://github.com/google/googletest)
 
 ## Build and compile
 
